@@ -1,4 +1,4 @@
-﻿using AuthService.Models;
+﻿using AuthService.DTOs;
 using AuthService.Services;
 using Microsoft.AspNetCore.Mvc;
 
@@ -9,25 +9,36 @@ namespace AuthService.Controllers
     public class AuthController : ControllerBase
     {
         private readonly JwtService _jwtService;
+        private readonly UserService _userService;
 
-        public AuthController(JwtService jwtService)
+        public AuthController(JwtService jwtService, UserService userService)
         {
             _jwtService = jwtService;
+            _userService = userService;
+        }
+
+        [HttpPost("register")]
+        public async Task<IActionResult> Register([FromBody] RegisterUserDto dto)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            var success = await _userService.RegisterUser(dto);
+            if (!success)
+                return Conflict(new { message = "Email уже зарегистрирован" });
+
+            return Ok(new { message = "Пользователь зарегистрирован" });
         }
 
         [HttpPost("login")]
-        public IActionResult Login([FromBody] LoginRequest request)
+        public async Task<IActionResult> Login([FromBody] LoginRequest request)
         {
-            if (request.Email == "test@example.com" && request.Password == "password")
-            {
-                var token = _jwtService.GenerateToken(request.Email);
-                return Ok(new { token });
-            }
+            var user = await _userService.GetUserByEmail(request.Email);
+            if (user == null || !_userService.VerifyPassword(user, request.Password))
+                return Unauthorized();
 
-            return Unauthorized();
+            var token = _jwtService.GenerateToken(request.Email);
+            return Ok(new { token });
         }
     }
-
-
-
 }

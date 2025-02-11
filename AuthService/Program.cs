@@ -4,6 +4,7 @@ using System.Text;
 using AuthService.Data;
 using Microsoft.EntityFrameworkCore;
 using AuthService.Services;
+using AuthService.Repositories;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -29,6 +30,8 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     });
 
 builder.Services.AddAuthorization();
+builder.Services.AddScoped<IUserRepository, UserRepository>();
+builder.Services.AddScoped<UserService>();
 builder.Services.AddSingleton<JwtService>();
 
 builder.Services.AddControllers();
