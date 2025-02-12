@@ -1,20 +1,23 @@
 ﻿using AuthService.Data;
 using AuthService.Models;
 using AuthService.DTOs;
-using AuthService.Services;
+using AuthService.Interfaces; // Добавили интерфейс
 using Microsoft.EntityFrameworkCore;
 using Xunit;
-using AuthService.Repositories;
 using Moq;
+using AuthService.Repositories;
+using AuthService.Services;
 
 public class UserServiceTests
 {
     private readonly Mock<IUserRepository> _userRepositoryMock;
-    private readonly UserService _userService;
+    private readonly Mock<IUserService> _userServiceMock; // Теперь мокируем сервис
+    private readonly IUserService _userService;
 
     public UserServiceTests()
     {
         _userRepositoryMock = new Mock<IUserRepository>();
+        _userServiceMock = new Mock<IUserService>(); // Мокируем интерфейс
         _userService = new UserService(_userRepositoryMock.Object);
     }
 
@@ -26,12 +29,13 @@ public class UserServiceTests
 
         _userRepositoryMock.Setup(repo => repo.UserExists(dto.Email)).ReturnsAsync(false);
         _userRepositoryMock.Setup(repo => repo.AddUser(It.IsAny<User>())).Returns(Task.CompletedTask);
+        _userServiceMock.Setup(s => s.HashPassword(dto.Password)).Returns("hashedpassword");
 
         // Act
         var result = await _userService.RegisterUser(dto);
 
         // Assert
-        Assert.True(result); // Регистрация должна быть успешной
+        Assert.True(result);
         _userRepositoryMock.Verify(repo => repo.AddUser(It.Is<User>(u =>
             u.Email == dto.Email && u.PasswordHash != dto.Password)), Times.Once);
     }
@@ -44,10 +48,10 @@ public class UserServiceTests
         _userRepositoryMock.Setup(repo => repo.UserExists(dto.Email)).ReturnsAsync(true);
 
         // Act
-        var result = await _userService.RegisterUser(dto); // Второй с тем же email
+        var result = await _userService.RegisterUser(dto);
 
         // Assert
-        Assert.False(result); // Должен вернуть false, так как email уже используется
+        Assert.False(result);
         _userRepositoryMock.Verify(repo => repo.AddUser(It.IsAny<User>()), Times.Never);
     }
 
@@ -83,16 +87,15 @@ public class UserServiceTests
     public void VerifyPassword_CorrectPassword_ReturnsTrue()
     {
         // Arrange
-        var userService = new UserService(null!);
         var password = "securepassword";
         var user = new User
         {
             Email = "test@example.com",
-            PasswordHash = userService.HashPassword(password)
+            PasswordHash = _userService.HashPassword(password) 
         };
 
         // Act
-        var result = userService.VerifyPassword(user, password);
+        var result = _userService.VerifyPassword(user, password);
 
         // Assert
         Assert.True(result);
@@ -102,12 +105,11 @@ public class UserServiceTests
     public void VerifyPassword_IncorrectPassword_ReturnsFalse()
     {
         // Arrange
-        var userService = new UserService(null!);
         var password = "securepassword";
         var user = new User
         {
             Email = "test@example.com",
-            PasswordHash = userService.HashPassword(password)
+            PasswordHash = _userService.HashPassword(password)
         };
 
         // Act

@@ -5,6 +5,8 @@ using AuthService.Data;
 using Microsoft.EntityFrameworkCore;
 using AuthService.Services;
 using AuthService.Repositories;
+using AuthService.Grpc;
+using AuthService.Interfaces;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -31,12 +33,13 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 
 builder.Services.AddAuthorization();
 builder.Services.AddScoped<IUserRepository, UserRepository>();
-builder.Services.AddScoped<UserService>();
-builder.Services.AddSingleton<JwtService>();
+builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.AddSingleton<IJwtService, JwtService>();
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+builder.Services.AddGrpc();
 
 
 var app = builder.Build();
@@ -55,6 +58,8 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+
+app.MapGrpcService<AuthGrpcService>();
 
 app.MapGet("/", () => "Auth Service Running");
 

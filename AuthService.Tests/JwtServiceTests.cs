@@ -1,16 +1,18 @@
-﻿using AuthService.Services;
+﻿using AuthService.Interfaces; // Добавили интерфейс
 using Microsoft.Extensions.Configuration;
-using Microsoft.IdentityModel.Tokens;
-using System;
-using System.Text;
 using Xunit;
+using Moq;
+using AuthService.Services;
 
 public class JwtServiceTests
 {
-    private readonly JwtService _jwtService;
+    private readonly Mock<IJwtService> _jwtServiceMock;
+    private readonly IJwtService _jwtService;
 
     public JwtServiceTests()
     {
+        _jwtServiceMock = new Mock<IJwtService>();
+
         // Создаём in-memory конфигурацию
         var inMemorySettings = new Dictionary<string, string?>
         {
@@ -29,6 +31,7 @@ public class JwtServiceTests
     {
         // Arrange
         var email = "test@example.com";
+        _jwtServiceMock.Setup(s => s.GenerateToken(email)).Returns("mock-token");
 
         // Act
         var token = _jwtService.GenerateToken(email);

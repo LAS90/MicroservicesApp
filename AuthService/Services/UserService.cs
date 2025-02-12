@@ -1,4 +1,5 @@
 ﻿using AuthService.DTOs;
+using AuthService.Interfaces;
 using AuthService.Models;
 using AuthService.Repositories;
 using System.Security.Cryptography;
@@ -6,7 +7,7 @@ using System.Text;
 
 namespace AuthService.Services
 {
-    public class UserService
+    public class UserService : IUserService
     {
         private readonly IUserRepository _userRepository;
 
