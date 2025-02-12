@@ -7,52 +7,90 @@ namespace AuthService.Grpc
 {
     public class AuthGrpcService : AuthService.AuthServiceBase
     {
+        private readonly ILogger<AuthGrpcService> _logger;
         private readonly IUserService _userService;
         private readonly IJwtService _jwtService;
 
-        public AuthGrpcService(IUserService userService, IJwtService jwtService)
+        public AuthGrpcService(IUserService userService, IJwtService jwtService, ILogger<AuthGrpcService> logger)
         {
             _userService = userService;
             _jwtService = jwtService;
+            _logger = logger;
         }
 
         public override async Task<RegisterResponse> Register(RegisterRequest request, ServerCallContext context)
         {
-            var dto = new RegisterUserDto
+            try
             {
-                Email = request.Email,
-                Password = request.Password
-            };
+                _logger.LogInformation("Попытка регистрации пользователя с email: {Email}", request.Email);
 
-            var result = await _userService.RegisterUser(dto);
+                var dto = new RegisterUserDto
+                {
+                    Email = request.Email,
+                    Password = request.Password
+                };
 
-            return new RegisterResponse
+                var result = await _userService.RegisterUser(dto);
+
+                if (result)
+                {
+                    _logger.LogInformation("Регистрация успешна для email: {Email}", request.Email);
+                    return new RegisterResponse
+                    {
+                        Success = true,
+                        Message = "Регистрация успешна"
+                    };
+                }
+                else
+                {
+                    _logger.LogWarning("Email {Email} уже используется", request.Email);
+                    return new RegisterResponse
+                    {
+                        Success = false,
+                        Message = "Email уже используется"
+                    };
+                }
+            }
+            catch (Exception ex)
             {
-                Success = result,
-                Message = result ? "Регистрация успешна" : "Email уже используется"
-            };
+                _logger.LogError(ex, "Ошибка при регистрации пользователя с email: {Email}", request.Email);
+                throw new RpcException(new Status(StatusCode.Internal, "Ошибка при регистрации пользователя"));
+            }
         }
 
         public override async Task<LoginResponse> Login(LoginRequest request, ServerCallContext context)
         {
-            var user = await _userService.GetUserByEmail(request.Email);
-
-            if (user == null || !_userService.VerifyPassword(user, request.Password))
+            try
             {
+                _logger.LogInformation("Попытка входа пользователя с email: {Email}", request.Email);
+
+                var user = await _userService.GetUserByEmail(request.Email);
+
+                if (user == null || !_userService.VerifyPassword(user, request.Password))
+                {
+                    _logger.LogWarning("Неверный email или пароль для email: {Email}", request.Email);
+                    return new LoginResponse
+                    {
+                        Token = "",
+                        Message = "Неверный email или пароль"
+                    };
+                }
+
+                var token = _jwtService.GenerateToken(user.Email);
+
+                _logger.LogInformation("Авторизация успешна для email: {Email}", request.Email);
+
                 return new LoginResponse
                 {
-                    Token = "",
-                    Message = "Неверный email или пароль"
+                    Token = token,
+                    Message = "Авторизация успешна"
                 };
             }
-
-            var token = _jwtService.GenerateToken(user.Email);
-
-            return new LoginResponse
+            catch (Exception ex)
             {
-                Token = token,
-                Message = "Авторизация успешна"
-            };
+                _logger.LogError(ex, "Ошибка при авторизации пользователя с email: {Email}", request.Email);
+                throw new RpcException(new Status(StatusCode.Internal, "Ошибка при авторизации пользователя"));
+            }
         }
     }
 
