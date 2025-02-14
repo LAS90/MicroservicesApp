@@ -1,27 +1,33 @@
 version: '3.8'
 
-services:
-  postgres:
-    image: postgres:13
-    container_name: postgres_db
+services:  
+  authservice:
+    build:
+      context: .
+      dockerfile: AuthService/Dockerfile
+    container_name: auth_service
     restart: always
     environment:
-      POSTGRES_USER: user
-      POSTGRES_PASSWORD: user
+      - ConnectionStrings__DefaultConnection=Host=postgres;Port=5432;Database=authdb;Username=user;Password=user
     ports:
-      - "5433:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - "5002:5002"
+    networks:
+      - microservices_network
 
-  rabbitmq:
-    image: rabbitmq:3-management
-    container_name: rabbitmq
-    ports:
-      - "5672:5672"
-      - "15672:15672"
+  apigateway:
+    build:
+      context: .
+      dockerfile: ApiGateway/Dockerfile
+    container_name: api_gateway
+    restart: always
     environment:
-      RABBITMQ_DEFAULT_USER: user
-      RABBITMQ_DEFAULT_PASS: user
+      - AuthService__GrpcUrl=http://authservice:5002
+      - DOTNET_SYSTEM_NET_HTTP_SOCKETSHTTPHANDLER_HTTP2SUPPORT=true
+    ports:
+      - "5000:5000"
+    networks:
+      - microservices_network
 
-volumes:
-  postgres_data:
+networks:
+  microservices_network:
+    external: true
